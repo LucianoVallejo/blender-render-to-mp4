@@ -3,27 +3,24 @@
   "blocklist": [],
   "data": [
     {
-      "schema_version": "1.0.0",
       "id": "render_to_mp4",
       "name": "Render to MP4",
       "tagline": "Converts a rendered image sequence to MP4 automatically when rendering finishes",
       "version": "1.0.0",
       "type": "add-on",
-      "maintainer": "Luciano Vallejo <luciano.v@wonderful.ai>",
-      "license": [
-        "SPDX:MIT"
-      ],
+      "archive_size": 2420,
+      "archive_hash": "sha256:267f2138c2656f093a091a9e99c7931296b80262dd8695430d892b521071db34",
+      "archive_url": "https://raw.githubusercontent.com/LucianoVallejo/blender-render-to-mp4/main/repo/render_to_mp4.zip",
       "blender_version_min": "4.2.0",
-      "website": "https://github.com/LucianoVallejo/blender-render-to-mp4",
-      "permissions": {
-        "files": "Writes the converted .mp4 file next to the rendered image sequence"
-      },
+      "maintainer": "Luciano Vallejo <luciano.v@wonderful.ai>",
       "tags": [
         "Render"
       ],
-      "archive_url": "./render_to_mp4.zip",
-      "archive_size": 2524,
-      "archive_hash": "sha256:edb43b5dd7a236dd3f39253ca95bd3de3a652df74b94ac18649e42304ad6f048"
+      "license": [
+        "SPDX:MIT"
+      ],
+      "website": "https://github.com/LucianoVallejo/blender-render-to-mp4",
+      "schema_version": "1.0.0"
     }
   ]
 }
