@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.0] - 2026-09-19
+
+### Added
+
+- Render queue support with zero configuration. Tools such as Blender Render
+  Queue drive Blender frame by frame from their own script, so Blender's
+  `render_complete` handler never sees a whole sequence. The add-on now also
+  listens to `render_write` in background sessions to remember where frames
+  are going, and converts the sequence once when the background Blender
+  process exits. Normal renders started from the Blender UI keep using
+  `render_complete` as before.
+- `render.to_mp4_now` operator to trigger the conversion explicitly from a
+  script (e.g. a queue tool's post-render Python expression:
+  `bpy.ops.render.to_mp4_now()`). Also exposed as `convert_scene(scene, force=True)`.
+
+### Changed
+
+- The ffmpeg `-start_number` is now taken from the lowest-numbered frame on
+  disk instead of `scene.frame_start`, so a queue tool that alters the scene
+  range per frame no longer produces a truncated video.
+- Conversion is skipped when the same folder was already converted in this
+  session, so the two hooks never encode the same sequence twice.
+
 ## [1.1.0] - 2026-09-19
 
 ### Fixed
@@ -12,7 +35,7 @@ All notable changes to this project are documented in this file.
   folder named `{scene_name}` and silently skipped. The handler now resolves
   the real on-disk path via `RenderSettings.frame_path()`, the same way
   Blender does when writing frames.
-- Frame padding, extension and file prefix are now derived from the actual
+- Frame padding, extension and file pkefix are now derived from the actual
   frame filename instead of a hard-coded format map, so every image format
   Blender can write to a sequence (including multilayer EXR) is handled.
 
