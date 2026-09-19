@@ -1,13 +1,3 @@
-bl_info = {
-    "name": "Render to MP4",
-    "author": "Luciano",
-    "version": (1, 0, 0),
-    "blender": (3, 0, 0),
-    "location": "Preferences > Add-ons > Render to MP4",
-    "description": "Automatically converts a rendered image sequence into an MP4 (via ffmpeg) as soon as rendering finishes.",
-    "category": "Render",
-}
-
 import bpy
 import subprocess
 import os
@@ -38,7 +28,7 @@ def find_ffmpeg(prefs_path):
 
 
 def get_addon_prefs():
-    return bpy.context.preferences.addons[__name__].preferences
+    return bpy.context.preferences.addons[__package__].preferences
 
 
 def render_complete_handler(scene):
@@ -124,7 +114,7 @@ def render_complete_handler(scene):
 
 
 class RenderToMP4Preferences(bpy.types.AddonPreferences):
-    bl_idname = __name__
+    bl_idname = __package__
 
     enabled: bpy.props.BoolProperty(
         name="Enabled",
@@ -142,6 +132,7 @@ class RenderToMP4Preferences(bpy.types.AddonPreferences):
         description="Show a macOS notification when the conversion finishes or fails",
         default=True,
     )
+
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "enabled")
@@ -163,7 +154,3 @@ def unregister():
         bpy.app.handlers.render_complete.remove(render_complete_handler)
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-
-
-if __name__ == "__main__":
-    register()

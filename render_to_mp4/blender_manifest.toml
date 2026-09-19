@@ -1,0 +1,21 @@
+schema_version = "1.0.0"
+
+id = "render_to_mp4"
+name = "Render to MP4"
+version = "1.0.0"
+tagline = "Converts a rendered image sequence to MP4 automatically when rendering finishes"
+maintainer = "Luciano Vallejo <luciano.v@wonderful.ai>"
+type = "add-on"
+
+tags = ["Render"]
+
+blender_version_min = "4.2.0"
+
+license = [
+  "SPDX:MIT",
+]
+
+website = "https://github.com/LucianoVallejo/blender-render-to-mp4"
+
+[permissions]
+files = "Writes the converted .mp4 file next to the rendered image sequence"

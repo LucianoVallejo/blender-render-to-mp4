@@ -1,0 +1,45 @@
+name: Build Extension Repository
+
+# Rebuilds repo/index.json (and the packaged .zip) whenever the extension
+# source changes, and commits the result back to main. Blender fetches
+# repo/index.json directly (via raw.githubusercontent.com) as a custom
+# "Get Extensions" repository, so this is what makes in-Blender updates work.
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "render_to_mp4/**"
+      - ".github/workflows/build-repo.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Blender
+        uses: bradyajohnston/setup-blender@v4
+        with:
+          version: "4.2.0"
+
+      - name: Package extension as zip
+        run: |
+          mkdir -p repo
+          cd render_to_mp4
+          zip -r ../repo/render_to_mp4.zip . -x ".*"
+          cd ..
+
+      - name: Generate repository index.json
+        run: blender --command extension server-generate --repo-dir=repo
+
+      - name: Commit updated repository files
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Rebuild extension repository index [skip ci]"
+          file_pattern: "repo/*"
