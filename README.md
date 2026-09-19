@@ -100,6 +100,13 @@ repackages the extension and rebuilds `repo/index.json` on every push, and
 commits the result back to the repo — so the moment the workflow finishes,
 anyone subscribed to this repository in Blender sees the update available.
 
+The workflow doesn't depend on Blender itself, or any third-party action
+that installs it — `scripts/generate_repo.py` builds the zip and computes
+the `index.json` fields (hash, size, manifest data) using only Python's
+standard library, matching the schema Blender's own extension platform
+uses. The only actions involved are GitHub's own official
+`actions/checkout` and `actions/setup-python`.
+
 ## Roadmap ideas
 
 - [ ] Auto-move the resulting `.mp4` into an Eagle-watched folder

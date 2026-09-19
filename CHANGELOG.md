@@ -12,6 +12,9 @@ All notable changes to this project are documented in this file.
 - Added a GitHub Actions workflow that rebuilds `repo/index.json` on every
   push, turning this repo into a self-hosted Blender Extensions repository
   that Blender can subscribe to and pull updates from directly
+- `scripts/generate_repo.py` builds the zip and `index.json` with only the
+  Python standard library — no dependency on Blender itself or a
+  third-party action to install it in CI
 - README now documents subscribing via `Get Extensions > Repositories` and
   publishing new versions
 

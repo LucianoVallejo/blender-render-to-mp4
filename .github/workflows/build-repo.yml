@@ -4,12 +4,18 @@ name: Build Extension Repository
 # source changes, and commits the result back to main. Blender fetches
 # repo/index.json directly (via raw.githubusercontent.com) as a custom
 # "Get Extensions" repository, so this is what makes in-Blender updates work.
+#
+# Deliberately does NOT depend on Blender itself (or a third-party action
+# that installs it) — scripts/generate_repo.py builds the zip and the
+# index.json with only the Python standard library, so the only actions
+# used here are GitHub's own official ones.
 
 on:
   push:
     branches: ["main"]
     paths:
       - "render_to_mp4/**"
+      - "scripts/generate_repo.py"
       - ".github/workflows/build-repo.yml"
   workflow_dispatch: {}
 
@@ -23,23 +29,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Blender
-        uses: bradyajohnston/setup-blender@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          version: "4.2.0"
+          python-version: "3.11"
 
-      - name: Package extension as zip
-        run: |
-          mkdir -p repo
-          cd render_to_mp4
-          zip -r ../repo/render_to_mp4.zip . -x ".*"
-          cd ..
-
-      - name: Generate repository index.json
-        run: blender --command extension server-generate --repo-dir=repo
+      - name: Generate repository index
+        run: python3 scripts/generate_repo.py
 
       - name: Commit updated repository files
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Rebuild extension repository index [skip ci]"
-          file_pattern: "repo/*"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add repo
+          git diff --staged --quiet && echo "No changes to commit" || git commit -m "Rebuild extension repository index [skip ci]"
+          git push
