@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [1.2.0] - 2026-09-19
 
+### Fixed
+
+- Handlers are now `@persistent`. Blender clears `bpy.app.handlers` every
+  time a .blend file is loaded, so in a background render
+  (`blender -b file.blend ...`) — which is how Blender Render Queue and every
+  other queue tool run Blender — the add-on's handler was registered at
+  startup and then silently dropped when the file opened. This is the actual
+  reason queue renders never produced a video; the UI path only worked
+  because the file was already open when the add-on registered.
+
 ### Added
 
 - Render queue support with zero configuration. Tools such as Blender Render

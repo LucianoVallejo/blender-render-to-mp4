@@ -4,6 +4,8 @@ import os
 import glob
 import atexit
 
+from bpy.app.handlers import persistent
+
 
 def find_ffmpeg(prefs_path):
     """Return a usable ffmpeg binary path.
@@ -178,12 +180,19 @@ _converted_dirs = set()
 _pending_jobs = {}
 
 
+@persistent
 def render_complete_handler(scene):
-    """Blender's render_complete hook: fires after a normal animation render
-    started from the UI or from a plain `blender -b file -a`."""
+    """Blender's render_complete hook: fires after an animation render.
+
+    Both handlers are @persistent: without it Blender drops them whenever a
+    .blend file is loaded, which is exactly what happens in a background
+    render (`blender -b file.blend ...`) where the add-on registers before
+    the file is opened. That was why queue renders never produced a video.
+    """
     convert_scene(scene, force=False)
 
 
+@persistent
 def render_write_handler(scene):
     """Fires every time Blender writes a frame to disk.
 
