@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.0] - 2026-09-19
+
+### Fixed
+
+- Output paths using Blender 5 file-output template variables
+  (`{scene_name}`, `{camera_name}`, `{blend_name}`, ...) — as used by
+  Blender Render Queue — were read literally, so the add-on looked for a
+  folder named `{scene_name}` and silently skipped. The handler now resolves
+  the real on-disk path via `RenderSettings.frame_path()`, the same way
+  Blender does when writing frames.
+- Frame padding, extension and file prefix are now derived from the actual
+  frame filename instead of a hard-coded format map, so every image format
+  Blender can write to a sequence (including multilayer EXR) is handled.
+
+### Changed
+
+- When the output filename prefix is empty (frames are just numbers inside
+  a per-scene/per-camera folder), the `.mp4` is named after that folder
+  instead of the `.blend` file.
+
 ## [1.0.1] - 2026-09-19
 
 ### Changed

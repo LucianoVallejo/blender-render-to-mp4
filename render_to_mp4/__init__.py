@@ -47,39 +47,50 @@ def render_complete_handler(scene):
     if render.image_settings.file_format in {"FFMPEG", "AVI_JPEG", "AVI_RAW"}:
         return
 
-    output_path = bpy.path.abspath(render.filepath)
-    output_dir = output_path if os.path.isdir(output_path) else os.path.dirname(output_path)
+    # Resolve the real on-disk path the same way Blender does when it writes
+    # frames. This expands Blender 5 output template variables such as
+    # {scene_name}, {camera_name} or {blend_name} (which Blender Render Queue
+    # relies on) and applies the frame padding, extension and relative-path
+    # rules for us. Reading render.filepath literally would leave the
+    # template text unexpanded and point at a folder that does not exist.
+    first_path = render.frame_path(frame=scene.frame_start)
 
+    output_dir = os.path.dirname(first_path)
     if not output_dir or not os.path.isdir(output_dir):
-        print("[Render to MP4] Could not resolve output directory, skipping conversion.")
+        print(f"[Render to MP4] Output directory does not exist: {output_dir!r}, skipping conversion.")
         return
 
-    ext_map = {
-        "PNG": "png",
-        "JPEG": "jpg",
-        "OPEN_EXR": "exr",
-        "TIFF": "tif",
-        "BMP": "bmp",
-    }
-    ext = ext_map.get(render.image_settings.file_format, "png")
+    first_name = os.path.basename(first_path)
+    stem, ext = os.path.splitext(first_name)
+    ext = ext.lstrip(".")
 
-    basename = os.path.basename(output_path)
-    pattern_glob = os.path.join(output_dir, f"{basename}*.{ext}")
+    # The trailing digits of the frame name are the frame number; their
+    # length is the padding and whatever precedes them is the prefix.
+    basename = ""
+    for i in range(len(stem)):
+        if stem[i:].isdigit():
+            basename = stem[:i]
+            padding = len(stem) - i
+            break
+    else:
+        print(f"[Render to MP4] Could not detect frame numbering in {first_name!r}, skipping.")
+        return
+
+    pattern_glob = os.path.join(output_dir, f"{glob.escape(basename)}*.{ext}")
     frames = sorted(glob.glob(pattern_glob))
 
     if len(frames) < 2:
         print(f"[Render to MP4] Fewer than 2 frames found matching {pattern_glob}, skipping.")
         return
 
-    # Detect the numeric padding (e.g. 0001 -> 4 digits) from the first frame.
-    first_frame_name = os.path.basename(frames[0])
-    digits = "".join(ch for ch in first_frame_name[len(basename):] if ch.isdigit())
-    padding = len(digits) if digits else 4
-
     ffmpeg_pattern = os.path.join(output_dir, f"{basename}%0{padding}d.{ext}")
 
     blend_name = os.path.splitext(os.path.basename(bpy.data.filepath))[0] if bpy.data.filepath else "render"
-    mp4_name = f"{basename.rstrip('_-.') or blend_name}.mp4"
+    # Name the video after the file prefix; if the prefix is empty (frames are
+    # just numbers, as with a template folder path) fall back to the folder
+    # name, which is usually the expanded {scene_name}/{camera_name}.
+    folder_name = os.path.basename(output_dir.rstrip(os.sep))
+    mp4_name = f"{basename.rstrip('_-.') or folder_name or blend_name}.mp4"
     mp4_path = os.path.join(output_dir, mp4_name)
 
     fps = render.fps / render.fps_base
@@ -89,6 +100,7 @@ def render_complete_handler(scene):
         ffmpeg_bin, "-y",
         "-framerate", str(fps),
         "-start_number", str(scene.frame_start),
+        "-pattern_type", "sequence",
         "-i", ffmpeg_pattern,
         "-c:v", "libx264",
         "-pix_fmt", "yuv420p",
@@ -101,7 +113,7 @@ def render_complete_handler(scene):
         if prefs.notify:
             subprocess.run([
                 "osascript", "-e",
-                f'display notification "{mp4_name} created" with title "Render to MP4 v1.0.1"',
+                f'display notification "{mp4_name} created" with title "Render to MP4 v1.1.0"',
             ])
     except subprocess.CalledProcessError as e:
         stderr = e.stderr.decode(errors="ignore") if e.stderr else str(e)
