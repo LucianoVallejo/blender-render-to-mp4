@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.1] - 2026-09-19
+
+### Changed
+
+- Notification title now includes the version number — a small, visible
+  test change to confirm the self-updating extension repository actually
+  delivers updates end to end
+
 ## [Unreleased]
 
 ### Changed

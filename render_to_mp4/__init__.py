@@ -101,7 +101,7 @@ def render_complete_handler(scene):
         if prefs.notify:
             subprocess.run([
                 "osascript", "-e",
-                f'display notification "{mp4_name} created" with title "Render to MP4"',
+                f'display notification "{mp4_name} created" with title "Render to MP4 v1.0.1"',
             ])
     except subprocess.CalledProcessError as e:
         stderr = e.stderr.decode(errors="ignore") if e.stderr else str(e)
