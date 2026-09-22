@@ -20,6 +20,11 @@ no matter what launched the render.
   Silicon/Intel, `/usr/bin`), or you can point it at a specific binary
 - Uses the scene's own render FPS automatically (a 25fps scene produces a
   25fps mp4, no configuration needed)
+- Adds **View > Viewport Render Animation to MP4** for one-click playblasts
+- Temporarily adds `_playblast` to the output path while a playblast runs,
+  then restores the original path automatically
+- Keeps playblast frames and videos separate from final-render output without
+  requiring you to rename the output path manually
 - Optional macOS notification on success or failure
 - Toggle on/off anytime from the add-on preferences, no need to uninstall
 
@@ -55,6 +60,34 @@ Render to MP4`) to:
    - Set a custom **ffmpeg path** if auto-detection doesn't find yours
    - Toggle the **macOS notification** on/off
 
+## Playblast to MP4
+
+In a 3D View, choose:
+
+`View > Viewport Render Animation to MP4`
+
+The add-on runs Blender's native viewport animation render, using the active
+viewport, shading, overlays, resolution, preview range, frame step, and scene
+FPS. It temporarily redirects the Output path by adding `_playblast`, creates
+the MP4, and then restores the exact original path.
+
+Examples:
+
+- `//renders/shot_010/` becomes `//renders/shot_010_playblast/`
+- `//renders/shot_010/beauty_` becomes
+  `//renders/shot_010/beauty_playblast_`
+
+The resulting video is named from that temporary path, such as
+`shot_010_playblast.mp4` or `beauty_playblast.mp4`. Only frames written by the
+current playblast are encoded. If the playblast is cancelled or incomplete,
+no MP4 is created. The image sequence is kept.
+
+The playblast command expects an image-sequence output format such as PNG,
+JPEG, EXR, or TIFF. If the scene already outputs a movie format, use Blender's
+normal Viewport Render Animation command instead. The wrapper temporarily
+enables **Overwrite** so repeat playblasts refresh every frame, then restores
+the original Overwrite setting together with the original output path.
+
 ### Manual install (fallback)
 
 If you'd rather not add a remote repository, you can still install it
@@ -79,6 +112,11 @@ ffmpeg -y -framerate <fps> -start_number <first_frame> \
 The resulting `.mp4` is written into the same folder as the rendered
 sequence, named after the output filename prefix (or the `.blend` file name
 if that's empty).
+
+Viewport playblasts use Blender's separate `render.opengl` job and do not use
+the normal completion handler. The add-on's playblast operator launches that
+native job, waits for its own job to finish, restores the original Output
+path, and converts the exact frame list from that run.
 
 ## Known limitations
 

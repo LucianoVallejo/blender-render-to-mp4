@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.0] - 2026-09-22
+
+### Added
+
+- **Viewport Render Animation to MP4** in the 3D View's View menu. It runs
+  Blender's native viewport animation render and creates an H.264 MP4 from
+  the resulting playblast frames.
+- Automatic playblast output routing. A normal output such as
+  `//renders/shot_010/` temporarily becomes
+  `//renders/shot_010_playblast/`; the original output path is restored as
+  soon as the playblast finishes or is cancelled.
+- Playblast conversion uses only frames written by the current run, so stale
+  frames in an existing output folder cannot leak into the MP4.
+- Preview-range and frame-step support for playblasts.
+- The wrapper temporarily enables frame overwriting for repeat playblasts and
+  restores the user's original Overwrite setting afterward.
+
+### Changed
+
+- H.264 output is normalized to even pixel dimensions for compatibility with
+  `yuv420p`.
+- Missing `ffmpeg` errors are now handled without interrupting Blender.
+
 ## [1.2.0] - 2026-09-19
 
 ### Fixed
