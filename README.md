@@ -113,10 +113,11 @@ The resulting `.mp4` is written into the same folder as the rendered
 sequence, named after the output filename prefix (or the `.blend` file name
 if that's empty).
 
-Viewport playblasts use Blender's separate `render.opengl` job and do not use
-the normal completion handler. The add-on's playblast operator launches that
-native job, waits for its own job to finish, restores the original Output
-path, and converts the exact frame list from that run.
+Viewport playblasts use Blender's separate `render.opengl` operation and do
+not use the normal completion handler. The add-on runs that operation in
+Blender's blocking Python mode so the temporary path stays active until every
+frame has been written. It then restores the original Output path and converts
+the exact frame list from that run.
 
 ## Known limitations
 

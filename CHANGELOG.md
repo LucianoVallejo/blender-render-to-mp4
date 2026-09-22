@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.1] - 2026-09-22
+
+### Fixed
+
+- Viewport playblasts now use Blender's blocking Python render path. The
+  temporary `_playblast` output remains active until Blender has finished
+  writing every frame, preventing later frames from overwriting files in the
+  normal final-render path.
+
 ## [1.3.0] - 2026-09-22
 
 ### Added

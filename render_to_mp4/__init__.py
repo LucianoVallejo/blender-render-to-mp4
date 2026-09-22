@@ -9,7 +9,7 @@ import sys
 from bpy.app.handlers import persistent
 
 
-ADDON_VERSION = "1.3.0"
+ADDON_VERSION = "1.3.1"
 MOVIE_FORMATS = {"FFMPEG", "AVI_JPEG", "AVI_RAW"}
 PLAYBLAST_SUFFIX = "_playblast"
 
@@ -278,7 +278,6 @@ def _convert_job(job, prefs):
 # and jobs seen via render_write that still need converting at exit.
 _converted_dirs = set()
 _pending_jobs = {}
-_active_playblast_operator = None
 
 
 @persistent
@@ -364,105 +363,11 @@ class RENDER_OT_playblast_to_mp4(bpy.types.Operator):
     )
     bl_options = {"REGISTER"}
 
-    _timer = None
-    _scene = None
-    _window_manager = None
-    _original_filepath = None
-    _original_use_overwrite = None
-    _temporary_filepath = None
-    _job = None
-    _prefs = None
-    _expected_frames = None
-    _before_signatures = None
-    _job_seen = False
-    _cancel_requested = False
-    _cleanup_scheduled = False
-
     @classmethod
     def poll(cls, context):
         return not bpy.app.background and context.area is not None and context.area.type == "VIEW_3D"
 
-    def _remove_timer(self):
-        if self._timer is not None and self._window_manager is not None:
-            try:
-                self._window_manager.event_timer_remove(self._timer)
-            except ReferenceError:
-                pass
-            self._timer = None
-
-    def _restore_render_settings(self):
-        if self._scene is not None:
-            try:
-                self._scene.render.filepath = self._original_filepath
-                self._scene.render.use_overwrite = self._original_use_overwrite
-            except ReferenceError:
-                pass
-
-    def _clear_active_operator(self):
-        global _active_playblast_operator
-        if _active_playblast_operator is self:
-            _active_playblast_operator = None
-
-    def _cleanup_now(self):
-        self._remove_timer()
-        self._restore_render_settings()
-        self._clear_active_operator()
-
-    def _cleanup_when_render_stops(self):
-        """Never restore the final-render path while OpenGL is still writing."""
-        self._remove_timer()
-        if not bpy.app.is_job_running("RENDER"):
-            self._cleanup_now()
-            return
-        if self._cleanup_scheduled:
-            return
-
-        self._cleanup_scheduled = True
-
-        def deferred_cleanup():
-            if bpy.app.is_job_running("RENDER"):
-                return 0.25
-            self._cleanup_scheduled = False
-            self._cleanup_now()
-            return None
-
-        bpy.app.timers.register(deferred_cleanup, first_interval=0.25)
-
-    def _finish(self, context):
-        self._cleanup_now()
-
-        if self._cancel_requested:
-            self.report({"INFO"}, "Playblast cancelled; output path restored")
-            return {"CANCELLED"}
-
-        changed_frames = [
-            path for path in self._expected_frames
-            if _file_signature(path) is not None
-            and _file_signature(path) != self._before_signatures.get(path)
-        ]
-
-        if len(changed_frames) != len(self._expected_frames):
-            self.report(
-                {"WARNING"},
-                f"Playblast incomplete ({len(changed_frames)}/{len(self._expected_frames)} frames); no MP4 created",
-            )
-            return {"CANCELLED"}
-
-        self._job["frames"] = changed_frames
-        result = _convert_job(self._job, self._prefs)
-        if result:
-            self.report({"INFO"}, f"Created {result}; output path restored")
-            return {"FINISHED"}
-
-        self.report({"WARNING"}, "Playblast finished but MP4 conversion failed; output path restored")
-        return {"CANCELLED"}
-
-    def invoke(self, context, event):
-        global _active_playblast_operator
-
-        if _active_playblast_operator is not None:
-            self.report({"WARNING"}, "A playblast is already being finalized")
-            return {"CANCELLED"}
+    def execute(self, context):
         if bpy.app.is_job_running("RENDER"):
             self.report({"WARNING"}, "Another render is already running")
             return {"CANCELLED"}
@@ -479,61 +384,61 @@ class RENDER_OT_playblast_to_mp4(bpy.types.Operator):
         frame_start, frame_end = _scene_playback_range(scene)
         frame_step = max(1, scene.frame_step)
 
-        self._scene = scene
-        self._window_manager = context.window_manager
-        self._original_filepath = render.filepath
-        self._original_use_overwrite = render.use_overwrite
-        self._temporary_filepath = _playblast_filepath(render.filepath)
-        self._prefs = prefs_snapshot(get_addon_prefs())
-        self._cancel_requested = False
-        self._job_seen = False
-        self._cleanup_scheduled = False
-        _active_playblast_operator = self
+        original_filepath = render.filepath
+        original_use_overwrite = render.use_overwrite
+        temporary_filepath = _playblast_filepath(original_filepath)
+        prefs = prefs_snapshot(get_addon_prefs())
 
         try:
-            render.filepath = self._temporary_filepath
+            render.filepath = temporary_filepath
             render.use_overwrite = True
-            self._job = _job_from_scene(scene, frame_start, frame_end, frame_step)
-            self._expected_frames = _expected_frame_paths(scene, frame_start, frame_end, frame_step)
-            self._before_signatures = {path: _file_signature(path) for path in self._expected_frames}
+            job = _job_from_scene(scene, frame_start, frame_end, frame_step)
+            expected_frames = _expected_frame_paths(scene, frame_start, frame_end, frame_step)
+            before_signatures = {path: _file_signature(path) for path in expected_frames}
 
-            output_dir = os.path.dirname(self._job["first_path"])
+            output_dir = os.path.dirname(job["first_path"])
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
-            result = bpy.ops.render.opengl("INVOKE_DEFAULT", animation=True, view_context=True)
-            if "RUNNING_MODAL" not in result:
-                raise RuntimeError("Blender did not start the viewport render job")
+            # Blender's EXEC path is explicitly blocking: it returns only after
+            # the viewport animation and all asynchronous frame writes finish.
+            # Keeping the temporary path in place for that entire call prevents
+            # any playblast frame from falling back to the final-render path.
+            render_result = bpy.ops.render.opengl(
+                "EXEC_DEFAULT",
+                animation=True,
+                view_context=True,
+            )
+            if "FINISHED" not in render_result:
+                self.report({"WARNING"}, "Playblast cancelled; output path restored")
+                return {"CANCELLED"}
 
-            # The native animation operator creates its render job before it
-            # returns RUNNING_MODAL, so the next timer tick may safely treat a
-            # non-running job as completed (important for very short playblasts).
-            self._job_seen = True
-            self._timer = context.window_manager.event_timer_add(0.25, window=context.window)
-            context.window_manager.modal_handler_add(self)
-            return {"RUNNING_MODAL"}
+            changed_frames = [
+                path for path in expected_frames
+                if _file_signature(path) is not None
+                and _file_signature(path) != before_signatures.get(path)
+            ]
         except Exception as exc:
-            self._cancel_requested = True
-            self._cleanup_when_render_stops()
             self.report({"ERROR"}, f"Could not start playblast: {exc}")
             return {"CANCELLED"}
+        finally:
+            render.filepath = original_filepath
+            render.use_overwrite = original_use_overwrite
 
-    def modal(self, context, event):
-        if event.type == "ESC":
-            self._cancel_requested = True
-            return {"PASS_THROUGH"}
+        if len(changed_frames) != len(expected_frames):
+            self.report(
+                {"WARNING"},
+                f"Playblast incomplete ({len(changed_frames)}/{len(expected_frames)} frames); no MP4 created",
+            )
+            return {"CANCELLED"}
 
-        if event.type != "TIMER" or event.timer != self._timer:
-            return {"PASS_THROUGH"}
+        job["frames"] = changed_frames
+        result = _convert_job(job, prefs)
+        if result:
+            self.report({"INFO"}, f"Created {result}; output path restored")
+            return {"FINISHED"}
 
-        if bpy.app.is_job_running("RENDER"):
-            self._job_seen = True
-            return {"PASS_THROUGH"}
-
-        return self._finish(context)
-
-    def cancel(self, context):
-        self._cancel_requested = True
-        self._cleanup_when_render_stops()
+        self.report({"WARNING"}, "Playblast finished but MP4 conversion failed; output path restored")
+        return {"CANCELLED"}
 
 
 class RenderToMP4Preferences(bpy.types.AddonPreferences):
@@ -586,10 +491,6 @@ def register():
 
 
 def unregister():
-    global _active_playblast_operator
-    if _active_playblast_operator is not None:
-        _active_playblast_operator._cancel_requested = True
-        _active_playblast_operator._cleanup_when_render_stops()
     try:
         bpy.types.VIEW3D_MT_view.remove(draw_playblast_menu)
     except Exception:
